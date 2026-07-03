@@ -170,17 +170,31 @@
     align-items: flex-start;
     margin-bottom: 6px;
   }
+  .task-goal-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    padding-right: 8px;
+  }
   .task-goal {
     font-size: 13px;
     font-weight: 600;
     color: #4A4A40;
+    line-height: 1.4;
+  }
+  .edit-icon-btn {
+    background: none;
+    border: none;
+    font-size: 11px;
     cursor: pointer;
-    padding-right: 8px;
+    color: #a0a090;
+    padding: 2px 4px;
   }
   .task-right-side {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     white-space: nowrap;
   }
   .task-count {
@@ -188,19 +202,17 @@
     font-weight: 700;
     color: #2B2B26;
     cursor: pointer;
-  }
-  .task-unit {
-    font-size: 11px;
-    color: #a0a090;
-    font-weight: 500;
+    background: #EFEFEF;
+    padding: 4px 8px;
+    border-radius: 6px;
   }
   .del-task-btn {
     background: none;
     border: none;
     color: #ccc;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 0 4px;
   }
   .del-task-btn:hover {
     color: #d9534f;
@@ -349,48 +361,59 @@
 const WEEK_START_DDAY = 138;
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
-// 초기 기본 구조 (처음 열었을 때 데이터가 없는 경우 생성됨)
+// 초기 기본 구조 (단위 제외)
 const INITIAL_DATA_STRUCTURE = [
   {
     subject: "수학", color: "#3B6E5C",
-    subTasks: [{ id: "math-" + Date.now(), goal: "개념강의 5강 + 개념문제 100제", unit: "개", target: 105, done: 0 }]
+    subTasks: [{ id: "math-" + Date.now(), goal: "개념강의 5강 + 개념문제 100제", target: 105, done: 0 }]
   },
   {
     subject: "국어", color: "#8B5A3C",
     subTasks: [
-      { id: "kor-1-" + Date.now(), goal: "화법+작문 개념 정리 완강", unit: "강", target: 8, done: 0 },
-      { id: "kor-2-" + Date.now(), goal: "문학 5지문 + 비문학 3지문", unit: "지문", target: 8, done: 0 }
+      { id: "kor-1-" + Date.now(), goal: "화법+작문 개념 정리 완강", target: 8, done: 0 },
+      { id: "kor-2-" + Date.now(), goal: "문학 5지문 + 비문학 3지문", target: 8, done: 0 }
     ]
   },
   {
     subject: "영어", color: "#3C5A8B",
     subTasks: [
-      { id: "eng-1-" + Date.now(), goal: "단어 300개 (하루 50개×6일)", unit: "회", target: 6, done: 0 },
-      { id: "eng-2-" + Date.now(), goal: "구문독해 3회", unit: "회", target: 3, done: 0 }
+      { id: "eng-1-" + Date.now(), goal: "단어 300개 (하루 50개×6일)", target: 6, done: 0 },
+      { id: "eng-2-" + Date.now(), goal: "구문독해 3회", target: 3, done: 0 }
     ]
   }
 ];
 
-// 랜덤 색상 목록 (새 과목 추가할 때 무작위 부여)
 const COLORS = ["#3B6E5C", "#8B5A3C", "#3C5A8B", "#6E4A8B", "#8B7A3C", "#5C5C5C", "#A3485E"];
 
 let weekOffset = 0;
 let globalData = {};
 
 function loadData() {
-  const saved = localStorage.getItem("customWeeklyTrackerV3");
+  const saved = localStorage.getItem("customWeeklyTrackerV5");
   if (saved) {
     try { globalData = JSON.parse(saved); } catch(e) { globalData = {}; }
   }
 }
 
 function saveData() {
-  localStorage.setItem("customWeeklyTrackerV3", JSON.stringify(globalData));
+  localStorage.setItem("customWeeklyTrackerV5", JSON.stringify(globalData));
 }
 
 function getWeekData() {
   const key = `week-${weekOffset}`;
   if (!globalData[key]) {
+    // 하위 호환성 체크 (구버전에서 연동)
+    const oldSaved = localStorage.getItem("customWeeklyTrackerV4") || localStorage.getItem("customWeeklyTrackerV3");
+    if (oldSaved) {
+      try {
+        const oldData = JSON.parse(oldSaved);
+        if (oldData[key]) {
+          globalData[key] = oldData[key];
+          return globalData[key];
+        }
+      } catch(e){}
+    }
+    
     globalData[key] = {
       dailyCheck: {},
       groups: JSON.parse(JSON.stringify(INITIAL_DATA_STRUCTURE))
@@ -433,14 +456,15 @@ function render() {
       subTasksHtml += `
         <div class="sub-task" style="border-left: 4px solid ${group.color}; opacity: ${isComplete ? 0.75 : 1};">
           <div class="task-top">
-            <div class="task-goal" onclick="editGoalText(${gIdx}, ${tIdx})" title="글자 수정">
-              ${task.goal} ${isComplete ? '✓' : ''}
+            <div class="task-goal-wrapper">
+              <span class="task-goal">${task.goal} ${isComplete ? '✓' : ''}</span>
+              <button class="edit-icon-btn" onclick="editGoalText(${gIdx}, ${tIdx})">✏️</button>
             </div>
             <div class="task-right-side">
-              <div class="task-count" onclick="editTargetAndUnit(${gIdx}, ${tIdx})" title="목표 및 단위 수정">
-                ${task.done}/${task.target} <span class="task-unit">${task.unit} ✎</span>
+              <div class="task-count" onclick="editTarget(${gIdx}, ${tIdx})" title="목표 숫자 변경">
+                ${task.done}/${task.target}
               </div>
-              <button class="del-task-btn" onclick="deleteSubTask(${gIdx}, ${tIdx})" title="목표 삭제">×</button>
+              <button class="del-task-btn" onclick="deleteSubTask(${gIdx}, ${tIdx})">×</button>
             </div>
           </div>
           <div class="task-bar-bg">
@@ -457,7 +481,7 @@ function render() {
     groupsHtml += `
       <div class="subject-group">
         <div class="group-header">
-          <div class="group-title" style="color: ${group.color};" onclick="editSubjectName(${gIdx})" title="과목명 수정">${group.subject} ✎</div>
+          <div class="group-title" style="color: ${group.color};" onclick="editSubjectName(${gIdx})">${group.subject} ✏️</div>
           <button class="del-group-btn" onclick="deleteSubjectGroup(${gIdx})">과목삭제</button>
         </div>
         <div>
@@ -501,29 +525,35 @@ function changeWeek(delta) {
   render();
 }
 
-/* --- 여기서부터 새롭게 업그레이드된 동적 편집 기능 함수들 --- */
-
 // 1. 과목 이름 수정
 function editSubjectName(gIdx) {
   const current = getWeekData();
   const v = prompt("과목 이름을 수정하세요:", current.groups[gIdx].subject);
-  if (!v || !v.trim()) return;
+  if (v === null) return;
+  if (!v.trim()) {
+    alert("내용을 입력해주세요.");
+    return;
+  }
   current.groups[gIdx].subject = v.trim();
   render();
 }
 
-// 2. 세부 목표 글자 수정
+// 2. 세부 목표 글씨 수정
 function editGoalText(gIdx, tIdx) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
-  const v = prompt("목표 내용을 수정하세요:", task.goal);
-  if (!v || !v.trim()) return;
+  const v = prompt("공부 목표 내용을 수정하세요:", task.goal);
+  if (v === null) return;
+  if (!v.trim()) {
+    alert("내용을 입력해주세요.");
+    return;
+  }
   task.goal = v.trim();
   render();
 }
 
-// 3. 목표 수량 및 단위 한 번에 수정
-function editTargetAndUnit(gIdx, tIdx) {
+// 3. 목표 수량만 깔끔하게 수정 (단위 팝업 제거)
+function editTarget(gIdx, tIdx) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
   
@@ -534,12 +564,8 @@ function editTargetAndUnit(gIdx, tIdx) {
     alert("올바른 숫자를 입력해주세요.");
     return;
   }
-  
-  const unitVal = prompt("단위를 입력하세요 (예: 개, 강, 지문, 단원):", task.unit);
-  if (unitVal === null) return;
 
   task.target = num;
-  if (unitVal.trim()) task.unit = unitVal.trim();
   if (task.done > task.target) task.done = task.target;
   
   render();
@@ -569,7 +595,7 @@ function deleteSubjectGroup(gIdx) {
   }
 }
 
-// 6. 특정 과목 안에 세부 목표 추가
+// 6. 특정 과목 안에 세부 목표 추가 (단위 입력 단계 스킵)
 function addSubTask(gIdx) {
   const current = getWeekData();
   const goal = prompt("세부 공부 목표를 입력하세요:");
@@ -577,15 +603,14 @@ function addSubTask(gIdx) {
   
   const targetVal = prompt("목표 수량을 입력하세요 (숫자만):", "5");
   const target = parseInt(targetVal, 10);
-  if (isNaN(target) || target <= 0) return;
-
-  const unit = prompt("단위를 입력하세요 (예: 강, 개, 지문):", "개");
-  if (!unit || !unit.trim()) return;
+  if (isNaN(target) || target <= 0) {
+    alert("올바른 숫자를 입력해주세요.");
+    return;
+  }
 
   current.groups[gIdx].subTasks.push({
     id: "task-" + Date.now() + Math.random(),
     goal: goal.trim(),
-    unit: unit.trim(),
     target: target,
     done: 0
   });
@@ -613,7 +638,7 @@ function generateExportText() {
     lines.push(`■ ${group.subject}`);
     group.subTasks.forEach((t) => {
       totalTarget += t.target; totalDone += t.done;
-      lines.push(` - ${t.goal}: ${t.done}/${t.target} ${t.unit}`);
+      lines.push(` - ${t.goal}: ${t.done}/${t.target}`);
     });
   });
   
@@ -666,7 +691,7 @@ function resetWeek() {
   render();
 }
 
-// 초기화 구동
+// 데이터 연동 및 구동
 loadData();
 render();
 </script>

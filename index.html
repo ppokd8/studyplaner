@@ -334,7 +334,6 @@
     text-decoration: underline;
   }
   
-  /* 숨겨진 날짜 선택 input용 */
   #target-date-picker {
     display: none;
   }
@@ -345,13 +344,13 @@
 <div class="container">
   <div class="header">
     <div class="header-top">
-      <!-- 디데이를 누르면 날짜 변경 피커가 작동하도록 바인딩 -->
       <h1 id="dday-display" onclick="triggerDatePicker()" title="목표 날짜 바꾸기">D-138 ✏️</h1>
       <input type="date" id="target-date-picker" onchange="saveTargetDate(this.value)">
       <div class="week-indicator" id="week-display">1주차</div>
     </div>
     <div class="sub-title-row">
-      <div class="sub-title">나만의 커스텀 주간 트래커</div>
+      <!-- 이 부분의 텍스트가 디데이 날짜 변경에 따라 실시간 매칭되도록 보정 -->
+      <div class="sub-title" id="sub-title-desc">나만의 커스텀 주간 트래커</div>
       <div class="total-time-display">총 공부 시간: <span id="total-time-sum">00:00:00</span></div>
     </div>
   </div>
@@ -361,7 +360,6 @@
     <button class="nav-btn" id="next-btn" onclick="changeWeek(1)">다음 주 →</button>
   </div>
 
-  <!-- 전체 진행률 카드 -->
   <div class="card">
     <div class="progress-header">
       <span class="progress-title">이번 주 전체 진행률</span>
@@ -372,24 +370,19 @@
     </div>
   </div>
 
-  <!-- 출석 체크 카드 -->
   <div class="card">
     <div class="progress-title" style="margin-bottom: 10px;">매일 앉았나요? (출석 체크)</div>
     <div class="attendance-grid" id="attendance-box"></div>
   </div>
 
-  <!-- 과목별 그룹 리스트 영역 -->
   <div id="subject-groups-box"></div>
 
-  <!-- 과목 추가 버튼 -->
   <button class="add-btn-main" onclick="addSubjectGroup()">+ 새 과목 추가하기</button>
 
-  <!-- 내보내기 영역 -->
   <div id="export-area">
     <button class="export-btn" onclick="toggleExport(true)">📋 기록 내보내기 (텍스트로 복사)</button>
   </div>
 
-  <!-- 초기화 영역 -->
   <div style="margin-top: 20px; text-align: center;" id="reset-area">
     <button class="link-btn" onclick="confirmReset(true)">이번 주 기록 초기화</button>
   </div>
@@ -398,7 +391,6 @@
 <script>
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
-// 디폴트 초기 과목 구조 (시간 보관용 minutes 키 추가됨)
 const INITIAL_DATA_STRUCTURE = [
   {
     subject: "수학", color: "#3B6E5C", minutes: 0,
@@ -426,15 +418,11 @@ let weekOffset = 0;
 let globalData = {};
 let targetDateStr = ""; 
 
-// 분(Minutes) 단위를 "00:00:00" 포맷 문자열로 바꿔주는 헬퍼 기능
 function formatMinutesToHMS(totalMinutes) {
   if (!totalMinutes || totalMinutes < 0) return "00:00:00";
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  
-  const hStr = String(hours).padStart(2, '0');
-  const mStr = String(minutes).padStart(2, '0');
-  return `${hStr}:${mStr}:00`;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
 function loadData() {
@@ -443,12 +431,10 @@ function loadData() {
     try { globalData = JSON.parse(saved); } catch(e) { globalData = {}; }
   }
   
-  // 타겟 목표 날짜 로드 (없으면 기본 수능 날짜 기준 시뮬레이션용 세팅)
   const savedDate = localStorage.getItem("customWeeklyTracker_TargetDate");
   if (savedDate) {
     targetDateStr = savedDate;
   } else {
-    // 기본 디폴트 날짜 세팅 (오늘로부터 대략 138일 뒤)
     const d = new Date();
     d.setDate(d.getDate() + 138);
     targetDateStr = d.toISOString().split('T')[0];
@@ -459,7 +445,6 @@ function saveData() {
   localStorage.setItem("customWeeklyTrackerV6", JSON.stringify(globalData));
 }
 
-// 디데이 계산 바인딩 숨겨진 인풋 작동
 function triggerDatePicker() {
   document.getElementById("target-date-picker").showPicker();
 }
@@ -474,20 +459,6 @@ function saveTargetDate(val) {
 function getWeekData() {
   const key = `week-${weekOffset}`;
   if (!globalData[key]) {
-    // 하위 호환 마이그레이션 및 기본값 세팅
-    const oldSaved = localStorage.getItem("customWeeklyTrackerV5") || localStorage.getItem("customWeeklyTrackerV4");
-    if (oldSaved) {
-      try {
-        const oldData = JSON.parse(oldSaved);
-        if (oldData[key]) {
-          globalData[key] = oldData[key];
-          // 예전 버전에 minutes 데이터가 누락되어 있다면 초기화
-          globalData[key].groups.forEach(g => { if(g.minutes === undefined) g.minutes = 0; });
-          return globalData[key];
-        }
-      } catch(e){}
-    }
-    
     globalData[key] = {
       dailyCheck: {},
       groups: JSON.parse(JSON.stringify(INITIAL_DATA_STRUCTURE))
@@ -499,28 +470,34 @@ function getWeekData() {
 function render() {
   const current = getWeekData();
   
-  // 1. D-Day 계산 알고리즘 수행
+  // [디데이 연산 오류 원인 전면 수정]
   const today = new Date();
   today.setHours(0,0,0,0);
-  const target = new Date(targetDateStr);
+  
+  // 문자열 파싱 시 타임존 에러를 방지하기 위해 년, 월, 일 분리 파싱
+  const parts = targetDateStr.split('-');
+  const target = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
   target.setHours(0,0,0,0);
   
   const diffTime = target.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  // 주간 단위 이동 보정 반영
+  // 현재 보고있는 주차 기준의 실시간 디데이 보정 계산
   const currentDDay = diffDays - (weekOffset * 7);
   
+  // 1. 디데이 메인 텍스트 동적 반영
   if (currentDDay >= 0) {
     document.getElementById("dday-display").innerText = `D-${currentDDay} ✏️`;
+    // 디데이 밑에 글도 목표 날짜 정보와 함께 직관적으로 갱신되게끔 매핑 변경
+    document.getElementById("sub-title-desc").innerText = `목표일(${targetDateStr}) 기준 남은 일정`;
   } else {
     document.getElementById("dday-display").innerText = `D+${Math.abs(currentDDay)} ✏️`;
+    document.getElementById("sub-title-desc").innerText = `목표일 완료 후 +${Math.abs(currentDDay)}일 경과`;
   }
   
   document.getElementById("week-display").innerText = `${weekOffset + 1}주차`;
   document.getElementById("prev-btn").disabled = (weekOffset === 0);
 
-  // 2. 출석체크 리스트업
   let attHtml = "";
   DAYS.forEach((day, i) => {
     const isChecked = !!current.dailyCheck[`d${i}`];
@@ -528,11 +505,10 @@ function render() {
   });
   document.getElementById("attendance-box").innerHTML = attHtml;
 
-  // 3. 과목 및 진행률 렌더링
   let groupsHtml = "";
   let totalTarget = 0;
   let totalDone = 0;
-  let weeklyTotalMinutes = 0; // 이번 주 총 공부시간 계산용 변수
+  let weeklyTotalMinutes = 0;
 
   current.groups.forEach((group, gIdx) => {
     let subTasksHtml = "";
@@ -576,7 +552,6 @@ function render() {
         <div class="group-header">
           <div class="group-title-side">
             <div class="group-title" style="color: ${group.color};" onclick="editSubjectName(${gIdx})">${group.subject} ✏️</div>
-            <!-- 공부 시간 박스 표시 영역 -->
             <div class="group-time" onclick="editSubjectTime(${gIdx})" title="공부 시간 수정">⏱️ ${formatMinutesToHMS(group.minutes)}</div>
           </div>
           <button class="del-group-btn" onclick="deleteSubjectGroup(${gIdx})">과목삭제</button>
@@ -591,37 +566,28 @@ function render() {
   
   document.getElementById("subject-groups-box").innerHTML = groupsHtml;
 
-  // 전체 통계 대시보드 갱신
   const overallPct = totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0;
   document.getElementById("overall-pct").innerText = `${overallPct}%`;
   document.getElementById("overall-bar").style.width = `${overallPct}%`;
   
-  // 상단 공부 시간의 누적 합 계산 출력 반영
   document.getElementById("total-time-sum").innerText = formatMinutesToHMS(weeklyTotalMinutes);
 
   saveData();
 }
 
-// 과목별 개별 공부 시간 수동 입력
 function editSubjectTime(gIdx) {
   const current = getWeekData();
   const group = current.groups[gIdx];
-  if(group.minutes === undefined) group.minutes = 0;
-  
-  const val = prompt(`[${group.subject}]의 이번 주 총 공부 시간을 입력해 주세요 (분 단위 숫자만):`, group.minutes);
+  const val = prompt(`[${group.subject}]의 공부 시간을 입력해 주세요 (분 단위 숫자만):`, group.minutes || 0);
   if (val === null) return;
   
   const parsed = parseInt(val, 10);
-  if (isNaN(parsed) || parsed < 0) {
-    alert("0 이상의 올바른 숫자를 분 단위로 기입해 주세요.");
-    return;
-  }
+  if (isNaN(parsed) || parsed < 0) return;
   
   group.minutes = parsed;
   render();
 }
 
-// 수량 업데이트 처리
 function updateProgress(gIdx, tIdx, delta) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
@@ -629,7 +595,6 @@ function updateProgress(gIdx, tIdx, delta) {
   render();
 }
 
-// 출석 연동
 function toggleDay(dayIdx) {
   const current = getWeekData();
   const key = `d${dayIdx}`;
@@ -637,30 +602,25 @@ function toggleDay(dayIdx) {
   render();
 }
 
-// 주간 이동 처리
 function changeWeek(delta) {
   weekOffset = Math.max(0, weekOffset + delta);
   toggleExport(false);
   render();
 }
 
-// 과목 타이틀 핸들링
 function editSubjectName(gIdx) {
   const current = getWeekData();
   const v = prompt("과목 이름을 수정하세요:", current.groups[gIdx].subject);
-  if (v === null) return;
-  if (!v.trim()) return;
+  if (v === null || !v.trim()) return;
   current.groups[gIdx].subject = v.trim();
   render();
 }
 
-// 세부 태스크 변경 핸들러
 function editGoalText(gIdx, tIdx) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
   const v = prompt("공부 목표 내용을 수정하세요:", task.goal);
-  if (v === null) return;
-  if (!v.trim()) return;
+  if (v === null || !v.trim()) return;
   task.goal = v.trim();
   render();
 }
@@ -668,7 +628,6 @@ function editGoalText(gIdx, tIdx) {
 function editTarget(gIdx, tIdx) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
-  
   const numVal = prompt("목표 수량을 입력하세요:", task.target);
   if (numVal === null) return;
   const num = parseInt(numVal, 10);
@@ -728,11 +687,10 @@ function deleteSubTask(gIdx, tIdx) {
   }
 }
 
-/* --- 데이터 복사 내보내기 --- */
 function generateExportText() {
   const current = getWeekData();
   let totalTarget = 0; let totalDone = 0; let totalMin = 0;
-  const lines = [`[내 맞춤형 주간 플래너 기록 - ${weekOffset + 1}주차]`, `목표일 기준 남은 일정 계산 완료`, ""];
+  const lines = [`[내 맞춤형 주간 플래너 기록 - ${weekOffset + 1}주차]`, `목표일(${targetDateStr}) 기준 일정`, ""];
   
   current.groups.forEach((group) => {
     const minVal = group.minutes || 0;

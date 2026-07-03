@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주간 개인 맞춤 플래너</title>
+<meta property="og:title" content="주간 개인 맞춤 플래너">
+<meta property="og:description" content="나만의 목표와 공부 시간을 관리하는 맞춤형 트래커">
+<meta property="og:type" content="website">
 <style>
   * {
     margin: 0;
@@ -28,8 +31,6 @@
     align-items: baseline;
     justify-content: space-between;
   }
-  
-  /* [오류 해결] 디데이 영역에 보이지 않는 투명 날짜 인풋을 넓게 덮어씌우는 구조 스타일 */
   .dday-wrapper {
     position: relative;
     display: inline-block;
@@ -41,7 +42,6 @@
     letter-spacing: -0.02em;
     color: #2B2B26;
   }
-  /* 진짜 날짜 선택기를 투명하게 만들어서 h1 위에 올림 (모든 브라우저 100% 작동 보장) */
   .dday-wrapper input[type="date"] {
     position: absolute;
     top: 0;
@@ -50,9 +50,8 @@
     height: 100%;
     opacity: 0;
     cursor: pointer;
-    font-size: 16px; /* 모바일 줌 현상 방지 */
+    font-size: 16px;
   }
-
   .week-indicator {
     font-size: 13px;
     color: #8a8a7a;
@@ -156,7 +155,7 @@
     color: #fff;
   }
   
-  /* 과목 그룹 스타일 */
+  /* 과목 그룹 디자인 수정 */
   .subject-group {
     background: #FFFFFF;
     border-radius: 16px;
@@ -177,9 +176,26 @@
     align-items: center;
     gap: 8px;
   }
+  /* [수정] 색상 변경이 가능함을 시각적으로 보여주는 래퍼 */
+  .subject-title-picker-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
   .group-title {
     font-size: 15px;
     font-weight: 800;
+  }
+  /* 투명 컬러 인풋을 글자 위에 덮어씌움 */
+  .subject-title-picker-wrapper input[type="color"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
     cursor: pointer;
   }
   .group-time {
@@ -199,7 +215,6 @@
     cursor: pointer;
   }
   
-  /* 세부 목표 스타일 */
   .sub-task {
     background: #FCFAF3;
     border-radius: 12px;
@@ -358,7 +373,6 @@
 <div class="container">
   <div class="header">
     <div class="header-top">
-      <!-- [수정] 자바스크립트 호출 대신 진짜 캘린더가 겉을 덮는 구조로 변경 -->
       <div class="dday-wrapper" title="목표 날짜 바꾸기">
         <h1 id="dday-display">D-138 ✏️</h1>
         <input type="date" id="target-date-picker" onchange="saveTargetDate(this.value)">
@@ -451,12 +465,10 @@ function loadData() {
   if (savedDate) {
     targetDateStr = savedDate;
   } else {
-    // 디폴트값: 오늘로부터 138일 뒤 날짜 자동 연산 세팅
     const d = new Date();
     d.setDate(d.getDate() + 138);
     targetDateStr = d.toISOString().split('T')[0];
   }
-  // 진짜 달력 선택기 input 창에도 세팅값 동기화
   document.getElementById("target-date-picker").value = targetDateStr;
 }
 
@@ -485,7 +497,6 @@ function getWeekData() {
 function render() {
   const current = getWeekData();
   
-  // [날짜 정밀 계산 로직 보정] 타임존 오류를 완벽 차단하는 현지 시간 연산
   const today = new Date();
   today.setHours(0,0,0,0);
   
@@ -493,17 +504,12 @@ function render() {
   const target = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
   target.setHours(0,0,0,0);
   
-  // 밀리초 단위를 하루 단위로 정확하게 올림 처리
   const diffTime = target.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  // 주차(weekOffset) 이동에 따른 실시간 일수 빼기 계산 연동
   const currentDDay = diffDays - (weekOffset * 7);
   
-  // 1. 상단 디데이 대문자 타이틀 텍스트 반영
   if (currentDDay >= 0) {
     document.getElementById("dday-display").innerText = `D-${currentDDay} ✏️`;
-    // 2. 디데이 밑에 글 설명 텍스트 실시간 반영 고정
     document.getElementById("sub-title-desc").innerText = `목표일(${targetDateStr}) 기준 남은 일정`;
   } else {
     document.getElementById("dday-display").innerText = `D+${Math.abs(currentDDay)} ✏️`;
@@ -562,11 +568,15 @@ function render() {
       `;
     });
 
+    // [수정] 과목명 영역을 클릭하면 컬러 선택 창이 투명하게 열리도록 매핑
     groupsHtml += `
       <div class="subject-group">
         <div class="group-header">
           <div class="group-title-side">
-            <div class="group-title" style="color: ${group.color};" onclick="editSubjectName(${gIdx})">${group.subject} ✏️</div>
+            <div class="subject-title-picker-wrapper" title="과목 이름 및 색상 변경">
+              <div class="group-title" style="color: ${group.color};">${group.subject} ✏️</div>
+              <input type="color" value="${group.color}" onchange="changeSubjectColor(${gIdx}, this.value)">
+            </div>
             <div class="group-time" onclick="editSubjectTime(${gIdx})" title="공부 시간 수정">⏱️ ${formatMinutesToHMS(group.minutes)}</div>
           </div>
           <button class="del-group-btn" onclick="deleteSubjectGroup(${gIdx})">과목삭제</button>
@@ -588,6 +598,13 @@ function render() {
   document.getElementById("total-time-sum").innerText = formatMinutesToHMS(weeklyTotalMinutes);
 
   saveData();
+}
+
+// [신규 함수] 색상 변경 실시간 처리
+function changeSubjectColor(gIdx, newColor) {
+  const current = getWeekData();
+  current.groups[gIdx].color = newColor;
+  render();
 }
 
 function editSubjectTime(gIdx) {
@@ -623,6 +640,7 @@ function changeWeek(delta) {
   render();
 }
 
+// [수정] 과목명 클릭 시 텍스트 프롬프트 창만 깔끔하게 연결
 function editSubjectName(gIdx) {
   const current = getWeekData();
   const v = prompt("과목 이름을 수정하세요:", current.groups[gIdx].subject);
@@ -630,6 +648,23 @@ function editSubjectName(gIdx) {
   current.groups[gIdx].subject = v.trim();
   render();
 }
+
+// 텍스트 프롬프트를 원하면 기존 타이틀 더블클릭이나 롱터치 대신 직관적으로 수정 창을 열 수 있게 우회 제공
+// 사용자가 과목 텍스트 자체를 길게 바꿔야 할 수 있으므로 통합 창으로 제공
+document.addEventListener('dblclick', function(e) {
+  // 사용성 편의를 위해 과목명을 더블클릭해도 텍스트 변경이 가능하게 히든 매핑 유지
+  if(e.target.classList.contains('group-title')) {
+    const wrappers = Array.from(document.querySelectorAll('.subject-title-picker-wrapper'));
+    const idx = wrappers.findIndex(w => w.contains(e.target));
+    if(idx !== -1) {
+      const current = getWeekData();
+      const v = prompt("과목 이름을 수정하세요:", current.groups[idx].subject);
+      if (v === null || !v.trim()) return;
+      current.groups[idx].subject = v.trim();
+      render();
+    }
+  }
+});
 
 function editGoalText(gIdx, tIdx) {
   const current = getWeekData();

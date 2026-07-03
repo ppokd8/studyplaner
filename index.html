@@ -181,7 +181,6 @@
     cursor: pointer;
   }
   
-  /* [수정] 컬러 피커 전용 독립 버튼 스타일 */
   .color-picker-btn {
     position: relative;
     display: inline-block;
@@ -234,7 +233,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
   }
   .task-goal-wrapper {
     display: flex;
@@ -265,7 +264,7 @@
   }
   .task-count {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     color: #2B2B26;
     cursor: pointer;
     background: #EFEFEF;
@@ -283,33 +282,37 @@
   .del-task-btn:hover {
     color: #d9534f;
   }
-  .task-bar-bg {
-    height: 6px;
-    background: #EEE9DC;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 8px;
-  }
-  .task-bar-fill {
-    height: 100%;
-    width: 0%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-  }
-  .btn-row {
+
+  /* [수정] 슬라이더(드래그) 영역 디자인 */
+  .slider-wrapper {
+    margin-bottom: 4px;
     display: flex;
-    gap: 6px;
+    align-items: center;
   }
-  .step-btn {
-    flex: 1;
-    padding: 6px 0;
-    border-radius: 6px;
-    border: 1px solid #DDD6C3;
-    background: #FFFFFF;
-    color: #5a5a4e;
-    font-size: 12px;
-    font-weight: 700;
+  .task-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #EEE9DC;
+    outline: none;
     cursor: pointer;
+    transition: background 0.1s;
+  }
+  /* 드래그 손잡이 스타일 맞춤 */
+  .task-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #3B6E5C; /* 스크립트에서 과목색으로 다이내믹 변경됨 */
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.1s;
+  }
+  .task-slider::-webkit-slider-thumb:active {
+    transform: scale(1.2);
   }
   
   .add-btn-inline {
@@ -545,9 +548,9 @@ function render() {
       totalTarget += task.target;
       totalDone += task.done;
 
-      const pct = task.target > 0 ? Math.round((task.done / task.target) * 100) : 0;
       const isComplete = task.done >= task.target;
 
+      // [핵심 변경] 플러스 마이너스 버튼 대신 한 줄로 쭉 당길 수 있는 range input(슬라이더) 배치
       subTasksHtml += `
         <div class="sub-task" style="border-left: 4px solid ${group.color}; opacity: ${isComplete ? 0.75 : 1};">
           <div class="task-top">
@@ -556,24 +559,22 @@ function render() {
               <button class="edit-icon-btn" onclick="editGoalText(${gIdx}, ${tIdx})">✏️</button>
             </div>
             <div class="task-right-side">
-              <div class="task-count" onclick="editTarget(${gIdx}, ${tIdx})" title="목표 변경">
+              <div class="task-count" onclick="editTarget(${gIdx}, ${tIdx})" title="최대 목표치 변경">
                 ${task.done}/${task.target}
               </div>
               <button class="del-task-btn" onclick="deleteSubTask(${gIdx}, ${tIdx})">×</button>
             </div>
           </div>
-          <div class="task-bar-bg">
-            <div class="task-bar-fill" style="width: ${pct}%; background: ${group.color};"></div>
-          </div>
-          <div class="btn-row">
-            <button class="step-btn" onclick="updateProgress(${gIdx}, ${tIdx}, -1)">−</button>
-            <button class="step-btn" style="background: ${group.color}; color: #fff; border: none;" onclick="updateProgress(${gIdx}, ${tIdx}, 1)">+ 완료</button>
+          <div class="slider-wrapper">
+            <input type="range" class="task-slider" 
+                   min="0" max="${task.target}" value="${task.done}" 
+                   style="background: linear-gradient(to right, ${group.color} 0%, ${group.color} ${(task.done/task.target)*100}%, #EEE9DC ${(task.done/task.target)*100}%, #EEE9DC 100%);"
+                   oninput="handleSliderInput(${gIdx}, ${tIdx}, this.value)">
           </div>
         </div>
       `;
     });
 
-    // [구조 완전히 분리] 과목 텍스트는 클릭 시 이름 수정 / 🎨 색상 버튼은 따로 독립 배치
     groupsHtml += `
       <div class="subject-group">
         <div class="group-header">
@@ -608,6 +609,16 @@ function render() {
   saveData();
 }
 
+// [신규 함수] 슬라이더 드래그할 때 실시간 수치 변경 및 데이터 세이브
+function handleSliderInput(gIdx, tIdx, val) {
+  const current = getWeekData();
+  const task = current.groups[gIdx].subTasks[tIdx];
+  task.done = parseInt(val, 10);
+  
+  // 전체 상단 진행률과 로컬스토리지 실시간 반영을 위해 즉시 렌더링 호출
+  render();
+}
+
 function changeSubjectColor(gIdx, newColor) {
   const current = getWeekData();
   current.groups[gIdx].color = newColor;
@@ -624,13 +635,6 @@ function editSubjectTime(gIdx) {
   if (isNaN(parsed) || parsed < 0) return;
   
   group.minutes = parsed;
-  render();
-}
-
-function updateProgress(gIdx, tIdx, delta) {
-  const current = getWeekData();
-  const task = current.groups[gIdx].subTasks[tIdx];
-  task.done = Math.max(0, Math.min(task.target, task.done + delta));
   render();
 }
 
@@ -667,7 +671,7 @@ function editGoalText(gIdx, tIdx) {
 function editTarget(gIdx, tIdx) {
   const current = getWeekData();
   const task = current.groups[gIdx].subTasks[tIdx];
-  const numVal = prompt("목표 수량을 입력하세요:", task.target);
+  const numVal = prompt("목표 수량(최대치)을 수정하세요:", task.target);
   if (numVal === null) return;
   const num = parseInt(numVal, 10);
   if (isNaN(num) || num <= 0) return;
@@ -705,7 +709,7 @@ function addSubTask(gIdx) {
   const goal = prompt("세부 공부 목표를 입력하세요:");
   if (!goal || !goal.trim()) return;
   
-  const targetVal = prompt("목표 수량을 입력하세요:", "5");
+  const targetVal = prompt("목표 총 수량을 입력하세요 (슬라이더의 최대치):", "10");
   const target = parseInt(targetVal, 10);
   if (isNaN(target) || target <= 0) return;
 

@@ -80,7 +80,7 @@
   }
   .progress-title {
     font-size: 13px;
-    fontWeight: 600;
+    font-weight: 600;
     color: #5a5a4e;
   }
   .progress-pct {
@@ -89,7 +89,6 @@
     color: #3B6E5C;
   }
   .progress-bar-bg {
-    height: 10, background: #EEE9DC;
     height: 10px;
     background: #EEE9DC;
     border-radius: 6px;
@@ -124,17 +123,46 @@
     background: #3B6E5C;
     color: #fff;
   }
-  .task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .task-card {
+  
+  /* 과목 그룹 스타일 */
+  .subject-group {
     background: #FFFFFF;
-    border-radius: 14px;
-    padding: 14px 16px;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
     border: 1px solid #E8E3D8;
-    transition: all 0.2s;
+  }
+  .group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #F6F3EC;
+  }
+  .group-title {
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .del-group-btn {
+    background: none;
+    border: none;
+    color: #d9534f;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  
+  /* 세부 목표 스타일 */
+  .sub-task {
+    background: #FCFAF3;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #E8E3D8;
+  }
+  .sub-task:last-child {
+    margin-bottom: 0;
   }
   .task-top {
     display: flex;
@@ -142,23 +170,23 @@
     align-items: flex-start;
     margin-bottom: 6px;
   }
-  .task-subject {
-    font-size: 14px;
-    font-weight: 700;
+  .task-goal {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4A4A40;
+    cursor: pointer;
+    padding-right: 8px;
+  }
+  .task-right-side {
     display: flex;
     align-items: center;
-    gap: 6px;
-  }
-  .task-goal {
-    font-size: 12px;
-    color: #8a8a7a;
-    margin-top: 2px;
+    gap: 8px;
+    white-space: nowrap;
   }
   .task-count {
     font-size: 13px;
     font-weight: 700;
     color: #2B2B26;
-    whiteSpace: nowrap;
     cursor: pointer;
   }
   .task-unit {
@@ -166,12 +194,23 @@
     color: #a0a090;
     font-weight: 500;
   }
+  .del-task-btn {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+  .del-task-btn:hover {
+    color: #d9534f;
+  }
   .task-bar-bg {
     height: 6px;
     background: #EEE9DC;
     border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .task-bar-fill {
     height: 100%;
@@ -181,18 +220,42 @@
   }
   .btn-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
   .step-btn {
     flex: 1;
-    padding: 8px 0;
-    border-radius: 8px;
+    padding: 6px 0;
+    border-radius: 6px;
     border: 1px solid #DDD6C3;
-    background: #FCFAF3;
+    background: #FFFFFF;
     color: #5a5a4e;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+  }
+  
+  .add-btn-inline {
+    background: none;
+    border: 1px dashed #DDD6C3;
+    border-radius: 8px;
+    width: 100%;
+    padding: 6px 0;
+    font-size: 12px;
+    color: #8a8a7a;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .add-btn-main {
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 12px;
+    border: 1px solid #3B6E5C;
+    background: #FFFFFF;
+    color: #3B6E5C;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 16px;
   }
   .export-btn {
     width: 100%;
@@ -204,7 +267,6 @@
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    margin-top: 20px;
   }
   .export-box {
     background: #FFFFFF;
@@ -215,7 +277,7 @@
   }
   textarea {
     width: 100%;
-    min-height: 140px;
+    min-height: 160px;
     font-size: 12px;
     font-family: monospace;
     border: 1px solid #EEE9DC;
@@ -266,8 +328,11 @@
     <div class="attendance-grid" id="attendance-box"></div>
   </div>
 
-  <!-- 과목 리스트 -->
-  <div class="task-list" id="task-list-box"></div>
+  <!-- 과목별 그룹 리스트 영역 -->
+  <div id="subject-groups-box"></div>
+
+  <!-- 과목 추가 버튼 -->
+  <button class="add-btn-main" onclick="addSubjectGroup()">+ 새 과목 추가하기</button>
 
   <!-- 내보내기 영역 -->
   <div id="export-area">
@@ -283,52 +348,61 @@
 <script>
 const WEEK_START_DDAY = 138;
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
-const INITIAL_TASKS = [
-  { id: "math", subject: "수학", goal: "개념강의 5강 + 개념문제 100제", unit: "개", target: 105, color: "#3B6E5C" },
-  { id: "kor-hwajak", subject: "국어 · 화작", goal: "화법+작문 개념 정리 완강", unit: "강", target: 8, color: "#8B5A3C" },
-  { id: "kor-susteuk", subject: "국어 · 수특", goal: "문학 5지문 + 비문학 3지문", unit: "지문", target: 8, color: "#8B5A3C" },
-  { id: "eng-word", subject: "영어 · 단어", goal: "300개 (하루 50개×6일)", unit: "회", target: 6, color: "#3C5A8B" },
-  { id: "eng-gumun", subject: "영어 · 구문독해", goal: "3회", unit: "회", target: 3, color: "#3C5A8B" },
-  { id: "sammun", subject: "사문", goal: "개념 1~2단원", unit: "단원", target: 2, color: "#6E4A8B" },
-  { id: "hanji", subject: "한지", goal: "개념 1단원 복습", unit: "단원", target: 1, color: "#6E4A8B" },
-  { id: "hangug", subject: "한국사", goal: "주 2회, 기출 1회분씩", unit: "회", target: 2, color: "#8B7A3C" },
-  { id: "hanguggeom", subject: "한능검", goal: "일요일 1~2시간", unit: "회", target: 1, color: "#5C5C5C" },
+
+// 초기 기본 구조 (처음 열었을 때 데이터가 없는 경우 생성됨)
+const INITIAL_DATA_STRUCTURE = [
+  {
+    subject: "수학", color: "#3B6E5C",
+    subTasks: [{ id: "math-" + Date.now(), goal: "개념강의 5강 + 개념문제 100제", unit: "개", target: 105, done: 0 }]
+  },
+  {
+    subject: "국어", color: "#8B5A3C",
+    subTasks: [
+      { id: "kor-1-" + Date.now(), goal: "화법+작문 개념 정리 완강", unit: "강", target: 8, done: 0 },
+      { id: "kor-2-" + Date.now(), goal: "문학 5지문 + 비문학 3지문", unit: "지문", target: 8, done: 0 }
+    ]
+  },
+  {
+    subject: "영어", color: "#3C5A8B",
+    subTasks: [
+      { id: "eng-1-" + Date.now(), goal: "단어 300개 (하루 50개×6일)", unit: "회", target: 6, done: 0 },
+      { id: "eng-2-" + Date.now(), goal: "구문독해 3회", unit: "회", target: 3, done: 0 }
+    ]
+  }
 ];
 
-let weekOffset = 0;
-let weekData = {};
+// 랜덤 색상 목록 (새 과목 추가할 때 무작위 부여)
+const COLORS = ["#3B6E5C", "#8B5A3C", "#3C5A8B", "#6E4A8B", "#8B7A3C", "#5C5C5C", "#A3485E"];
 
-// LocalStorage에서 데이터를 안전하게 불러오는 함수
+let weekOffset = 0;
+let globalData = {};
+
 function loadData() {
-  const saved = localStorage.getItem("weeklyStudyTrackerData");
+  const saved = localStorage.getItem("customWeeklyTrackerV3");
   if (saved) {
-    try { weekData = JSON.parse(saved); } catch(e) { weekData = {}; }
+    try { globalData = JSON.parse(saved); } catch(e) { globalData = {}; }
   }
 }
 
-// LocalStorage에 데이터를 저장하는 함수
 function saveData() {
-  localStorage.setItem("weeklyStudyTrackerData", JSON.stringify(weekData));
+  localStorage.setItem("customWeeklyTrackerV3", JSON.stringify(globalData));
 }
 
-// 현재 주차의 데이터를 가져오거나 초기화하는 함수
 function getWeekData() {
   const key = `week-${weekOffset}`;
-  if (!weekData[key]) {
-    weekData[key] = {
-      progress: {},
+  if (!globalData[key]) {
+    globalData[key] = {
       dailyCheck: {},
-      tasks: JSON.parse(JSON.stringify(INITIAL_TASKS)) // 깊은 복사
+      groups: JSON.parse(JSON.stringify(INITIAL_DATA_STRUCTURE))
     };
   }
-  return weekData[key];
+  return globalData[key];
 }
 
 function render() {
   const current = getWeekData();
   const dDayStart = WEEK_START_DDAY - (weekOffset * 7);
   
-  // 헤더 및 내비게이션 바인딩
   document.getElementById("dday-display").innerText = `D-${dDayStart}`;
   document.getElementById("week-display").innerText = `${weekOffset + 1}주차`;
   document.getElementById("prev-btn").disabled = (weekOffset === 0);
@@ -341,45 +415,62 @@ function render() {
   });
   document.getElementById("attendance-box").innerHTML = attHtml;
 
-  // 2. 과목 리스트 & 진행률 계산 렌더링
-  let taskHtml = "";
+  // 2. 과목 그룹 및 세부 목표 렌더링
+  let groupsHtml = "";
   let totalTarget = 0;
   let totalDone = 0;
 
-  current.tasks.forEach((task) => {
-    const done = Math.min(task.target, current.progress[task.id] || 0);
-    totalTarget += task.target;
-    totalDone += done;
+  current.groups.forEach((group, gIdx) => {
+    let subTasksHtml = "";
+    
+    group.subTasks.forEach((task, tIdx) => {
+      totalTarget += task.target;
+      totalDone += task.done;
 
-    const pct = Math.round((done / task.target) * 100);
-    const isComplete = done >= task.target;
+      const pct = task.target > 0 ? Math.round((task.done / task.target) * 100) : 0;
+      const isComplete = task.done >= task.target;
 
-    taskHtml += `
-      <div class="task-card" style="border-color: ${isComplete ? task.color : '#E8E3D8'}; opacity: ${isComplete ? 0.85 : 1};">
-        <div class="task-top">
-          <div>
-            <div class="task-subject" style="color: ${task.color};">
-              ${task.subject} ${isComplete ? '✓' : ''}
+      subTasksHtml += `
+        <div class="sub-task" style="border-left: 4px solid ${group.color}; opacity: ${isComplete ? 0.75 : 1};">
+          <div class="task-top">
+            <div class="task-goal" onclick="editGoalText(${gIdx}, ${tIdx})" title="글자 수정">
+              ${task.goal} ${isComplete ? '✓' : ''}
             </div>
-            <div class="task-goal">${task.goal}</div>
+            <div class="task-right-side">
+              <div class="task-count" onclick="editTargetAndUnit(${gIdx}, ${tIdx})" title="목표 및 단위 수정">
+                ${task.done}/${task.target} <span class="task-unit">${task.unit} ✎</span>
+              </div>
+              <button class="del-task-btn" onclick="deleteSubTask(${gIdx}, ${tIdx})" title="목표 삭제">×</button>
+            </div>
           </div>
-          <div class="task-count" onclick="editTarget('${task.id}')">
-            ${done}/${task.target} <span class="task-unit">${task.unit} ✎</span>
+          <div class="task-bar-bg">
+            <div class="task-bar-fill" style="width: ${pct}%; background: ${group.color};"></div>
+          </div>
+          <div class="btn-row">
+            <button class="step-btn" onclick="updateProgress(${gIdx}, ${tIdx}, -1)">−</button>
+            <button class="step-btn" style="background: ${group.color}; color: #fff; border: none;" onclick="updateProgress(${gIdx}, ${tIdx}, 1)">+ 완료</button>
           </div>
         </div>
-        <div class="task-bar-bg">
-          <div class="task-bar-fill" style="width: ${pct}%; background: ${task.color};"></div>
+      `;
+    });
+
+    groupsHtml += `
+      <div class="subject-group">
+        <div class="group-header">
+          <div class="group-title" style="color: ${group.color};" onclick="editSubjectName(${gIdx})" title="과목명 수정">${group.subject} ✎</div>
+          <button class="del-group-btn" onclick="deleteSubjectGroup(${gIdx})">과목삭제</button>
         </div>
-        <div class="btn-row">
-          <button class="step-btn" onclick="updateProgress('${task.id}', -1)">−</button>
-          <button class="step-btn" style="background: ${task.color}; color: #fff; border: none;" onclick="updateProgress('${task.id}', 1)">+ 완료</button>
+        <div>
+          ${subTasksHtml}
+          <button class="add-btn-inline" onclick="addSubTask(${gIdx})">+ 목표 추가</button>
         </div>
       </div>
     `;
   });
-  document.getElementById("task-list-box").innerHTML = taskHtml;
+  
+  document.getElementById("subject-groups-box").innerHTML = groupsHtml;
 
-  // 전체 진행률 계산
+  // 전체 진행률 업데이트
   const overallPct = totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0;
   document.getElementById("overall-pct").innerText = `${overallPct}%`;
   document.getElementById("overall-bar").style.width = `${overallPct}%`;
@@ -387,12 +478,11 @@ function render() {
   saveData();
 }
 
-// 진행도 업데이트 (+1, -1)
-function updateProgress(taskId, delta) {
+// 수량 변경 (+1, -1)
+function updateProgress(gIdx, tIdx, delta) {
   const current = getWeekData();
-  const task = current.tasks.find(t => t.id === taskId);
-  const currProgress = current.progress[taskId] || 0;
-  current.progress[taskId] = Math.max(0, Math.min(task.target, currProgress + delta));
+  const task = current.groups[gIdx].subTasks[tIdx];
+  task.done = Math.max(0, Math.min(task.target, task.done + delta));
   render();
 }
 
@@ -404,49 +494,135 @@ function toggleDay(dayIdx) {
   render();
 }
 
-// 주차 변경
+// 주차 이동
 function changeWeek(delta) {
   weekOffset = Math.max(0, weekOffset + delta);
-  toggleExport(false); // 주차 바뀔 때 창 닫기
+  toggleExport(false);
   render();
 }
 
-// 목표치 개별 수정
-function editTarget(taskId) {
+/* --- 여기서부터 새롭게 업그레이드된 동적 편집 기능 함수들 --- */
+
+// 1. 과목 이름 수정
+function editSubjectName(gIdx) {
   const current = getWeekData();
-  const task = current.tasks.find(t => t.id === taskId);
-  const v = prompt(`${task.subject} 목표 수량을 입력하세요:`, task.target);
-  if (v === null) return;
-  const num = parseInt(v, 10);
-  if (!isNaN(num) && num > 0) {
-    task.target = num;
-    if ((current.progress[taskId] || 0) > task.target) {
-      current.progress[taskId] = task.target;
-    }
+  const v = prompt("과목 이름을 수정하세요:", current.groups[gIdx].subject);
+  if (!v || !v.trim()) return;
+  current.groups[gIdx].subject = v.trim();
+  render();
+}
+
+// 2. 세부 목표 글자 수정
+function editGoalText(gIdx, tIdx) {
+  const current = getWeekData();
+  const task = current.groups[gIdx].subTasks[tIdx];
+  const v = prompt("목표 내용을 수정하세요:", task.goal);
+  if (!v || !v.trim()) return;
+  task.goal = v.trim();
+  render();
+}
+
+// 3. 목표 수량 및 단위 한 번에 수정
+function editTargetAndUnit(gIdx, tIdx) {
+  const current = getWeekData();
+  const task = current.groups[gIdx].subTasks[tIdx];
+  
+  const numVal = prompt("목표 수량을 입력하세요 (숫자만):", task.target);
+  if (numVal === null) return;
+  const num = parseInt(numVal, 10);
+  if (isNaN(num) || num <= 0) {
+    alert("올바른 숫자를 입력해주세요.");
+    return;
+  }
+  
+  const unitVal = prompt("단위를 입력하세요 (예: 개, 강, 지문, 단원):", task.unit);
+  if (unitVal === null) return;
+
+  task.target = num;
+  if (unitVal.trim()) task.unit = unitVal.trim();
+  if (task.done > task.target) task.done = task.target;
+  
+  render();
+}
+
+// 4. 새 과목 그룹 추가
+function addSubjectGroup() {
+  const current = getWeekData();
+  const name = prompt("새로 추가할 과목명을 입력하세요 (예: 사문, 물화, 생글):");
+  if (!name || !name.trim()) return;
+
+  const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  current.groups.push({
+    subject: name.trim(),
+    color: randomColor,
+    subTasks: []
+  });
+  render();
+}
+
+// 5. 과목 통째로 삭제
+function deleteSubjectGroup(gIdx) {
+  const current = getWeekData();
+  if (confirm(`[${current.groups[gIdx].subject}] 과목과 안의 모든 목표가 삭제됩니다. 정말 삭제할까요?`)) {
+    current.groups.splice(gIdx, 1);
     render();
   }
 }
 
-// 내보내기 텍스트 생성
+// 6. 특정 과목 안에 세부 목표 추가
+function addSubTask(gIdx) {
+  const current = getWeekData();
+  const goal = prompt("세부 공부 목표를 입력하세요:");
+  if (!goal || !goal.trim()) return;
+  
+  const targetVal = prompt("목표 수량을 입력하세요 (숫자만):", "5");
+  const target = parseInt(targetVal, 10);
+  if (isNaN(target) || target <= 0) return;
+
+  const unit = prompt("단위를 입력하세요 (예: 강, 개, 지문):", "개");
+  if (!unit || !unit.trim()) return;
+
+  current.groups[gIdx].subTasks.push({
+    id: "task-" + Date.now() + Math.random(),
+    goal: goal.trim(),
+    unit: unit.trim(),
+    target: target,
+    done: 0
+  });
+  render();
+}
+
+// 7. 세부 목표만 골라서 삭제
+function deleteSubTask(gIdx, tIdx) {
+  const current = getWeekData();
+  if (confirm("이 목표를 삭제하시겠습니까?")) {
+    current.groups[gIdx].subTasks.splice(tIdx, 1);
+    render();
+  }
+}
+
+/* --- 데이터 출력 및 리셋 --- */
 function generateExportText() {
   const current = getWeekData();
   const dDayStart = WEEK_START_DDAY - (weekOffset * 7);
   
   let totalTarget = 0; let totalDone = 0;
-  const lines = [`D-${dDayStart} (${weekOffset + 1}주차) 학습 기록`, ""];
+  const lines = [`D-${dDayStart} (${weekOffset + 1}주차) 수능 플래너 기록`, ""];
   
-  current.tasks.forEach((t) => {
-    const done = Math.min(t.target, current.progress[t.id] || 0);
-    totalTarget += t.target; totalDone += done;
-    lines.push(`${t.subject}: ${done}/${t.target} ${t.unit} (${t.goal})`);
+  current.groups.forEach((group) => {
+    lines.push(`■ ${group.subject}`);
+    group.subTasks.forEach((t) => {
+      totalTarget += t.target; totalDone += t.done;
+      lines.push(` - ${t.goal}: ${t.done}/${t.target} ${t.unit}`);
+    });
   });
   
   const overallPct = totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0;
   const checkedDays = DAYS.filter((_, i) => current.dailyCheck[`d${i}`]);
   
   lines.push("");
-  lines.push(`출석: ${checkedDays.length > 0 ? checkedDays.join(", ") : "없음"}`);
-  lines.push(`전체 진행률: ${overallPct}%`);
+  lines.push(`출석 요일: ${checkedDays.length > 0 ? checkedDays.join(", ") : "없음"}`);
+  lines.push(`주간 총 진행률: ${overallPct}%`);
   return lines.join("\n");
 }
 
@@ -456,7 +632,7 @@ function toggleExport(show) {
     area.innerHTML = `
       <div class="export-box">
         <textarea readonly onclick="this.select()">${generateExportText()}</textarea>
-        <div style="font-size: 11px; color: #a0a090; margin-top: 6px;">클릭 후 전체 선택해 복사해서 활용하세요.</div>
+        <div style="font-size: 11px; color: #a0a090; margin-top: 6px;">상자 안을 터치해서 복사하세요!</div>
         <button class="link-btn" style="margin-top: 8px;" onclick="toggleExport(false)">닫기</button>
       </div>
     `;
@@ -465,13 +641,12 @@ function toggleExport(show) {
   }
 }
 
-// 초기화 제어
 function confirmReset(ask) {
   const area = document.getElementById("reset-area");
   if (ask) {
     area.innerHTML = `
       <div style="font-size: 12px; color: #a04a3c;">
-        정말 초기화할까요? 
+        정말 이번 주 기록을 비울까요? (커스텀 설정도 초기화됩니다) 
         <button class="link-btn" style="color: #a04a3c; font-weight: 700;" onclick="resetWeek()">네</button> / 
         <button class="link-btn" onclick="confirmReset(false)">아니오</button>
       </div>
@@ -483,16 +658,15 @@ function confirmReset(ask) {
 
 function resetWeek() {
   const key = `week-${weekOffset}`;
-  weekData[key] = {
-    progress: {},
+  globalData[key] = {
     dailyCheck: {},
-    tasks: JSON.parse(JSON.stringify(INITIAL_TASKS))
+    groups: JSON.parse(JSON.stringify(INITIAL_DATA_STRUCTURE))
   };
   confirmReset(false);
   render();
 }
 
-// 앱 구동
+// 초기화 구동
 loadData();
 render();
 </script>
